@@ -4,7 +4,7 @@ Provides linkedin api-related code
 import random
 import logging
 from time import sleep
-from urllib.parse import urlencode
+from urllib.parse import urlencode, quote_plus
 import json
 
 from linkedin_api.utils.helpers import get_id_from_urn
@@ -33,7 +33,7 @@ class Linkedin(object):
         200
     )  # VERY conservative max requests count to avoid rate-limit
 
-    def __init__(self, username, password, *, refresh_cookies=False, debug=False, proxies=proxies):
+    def __init__(self, username, password, *, refresh_cookies=False, debug=True, proxies={}):
         self.client = Client(refresh_cookies=refresh_cookies, debug=debug, proxies=proxies)
         self.client.authenticate(username, password)
         logging.basicConfig(level=logging.DEBUG if debug else logging.INFO)
@@ -56,7 +56,8 @@ class Linkedin(object):
         evade()
 
         url = f"{self.client.API_BASE_URL}{uri}"
-        return self.client.session.post(url, **kwargs)
+        return self.client.session.post(url, cookies=self.client.session.cookies,
+            **kwargs)
 
     def search(self, params, limit=None, results=[]):
         """
@@ -662,3 +663,19 @@ class Linkedin(object):
         data = res.json()
         return data.get("data", {})
 
+    def stub_people_search(self, query, count=10, start=0):
+        url_query = quote_plus(query)
+
+        url = f"/search/hits?count="+str(count)+"&guides=List%28v-%253EPEOPLE%29&keywords="+url_query+"&origin=SWITCH_SEARCH_VERTICAL&q=guided"
+        if (start > 0):
+            url += "&start=" + str(start)
+        res = self._fetch(
+            url,
+            headers={
+                "accept": "application/vnd.linkedin.normalized+json+2.1",
+            })
+
+        if res.status_code != 200:
+            return {}
+
+        return res.json()

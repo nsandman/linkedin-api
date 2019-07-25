@@ -49,8 +49,13 @@ class Client(object):
         "Accept-Language": "en-us",
     }
 
+    DEBUG = False
     def __init__(self, *, debug=False, refresh_cookies=False, proxies={}):
+        DEBUG = debug
+
+        requests.packages.urllib3.disable_warnings()
         self.session = requests.session()
+        self.session.verify = not debug
         self.session.proxies.update(proxies)
         self.session.headers.update(Client.REQUEST_HEADERS)
 
@@ -94,6 +99,9 @@ class Client(object):
     def cookies(self):
         return self.session.cookies
 
+    def fix_cookies(self):
+        self._set_session_cookies(self._request_session_cookies())
+
     def authenticate(self, username, password):
         """
         Authenticate with Linkedin.
@@ -113,6 +121,7 @@ class Client(object):
             data=payload,
             cookies=self.session.cookies,
             headers=Client.AUTH_REQUEST_HEADERS,
+            verify=False
         )
 
         data = res.json()
